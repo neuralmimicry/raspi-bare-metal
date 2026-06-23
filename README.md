@@ -1,5 +1,13 @@
 # raspi-bare-metal — aarnn-nsys on Raspberry Pi (no_std)
 
+## Sponsor NeuralMimicry
+
+This crate demonstrates the `aarnn-nsys` message bus running on bare-metal Raspberry Pi 4 AArch64 — no operating system, no allocator, booting directly from the UART — a proof point for neuromorphic messaging at the edge. NeuralMimicry is an independent open-source initiative and we rely on community support to sustain this work.
+
+**[☕ Support us on Crowdfunder](https://www.crowdfunder.co.uk/p/qr/aWggxwPW?utm_campaign=sharemodal&utm_medium=referral&utm_source=shortlink)**
+
+---
+
 This crate is a tiny, bootable bare‑metal image for Raspberry Pi 4 (AArch64) that demonstrates how to use `aarnn-nsys` in a `no_std` environment. It:
 
 - Boots without an OS using a minimal `start.s` and `raspi.ld` linker script
@@ -79,6 +87,7 @@ This single binary contains a tiny UART menu to run multiple demos that mirror t
 ```
 - Press the corresponding key to run a demo. After completion, the menu is shown again.
 - Press `q` to park the CPU in low-power wait.
+- Whitespace keys (Enter/CR/LF, space, tab) are ignored to make automation robust; they will not trigger "Invalid selection".
 
 Expected serial output by demo:
 - 1 Basic publish/subscribe:
@@ -191,3 +200,38 @@ const HDR: usize = bus::header_layout_size(DESC_CAPACITY);
 ## Going further
 - The same bus core also works on Linux with the `linux-shm` backend (feature `std`): see `aarnn-nsys` CLI and examples.
 - You can run multiple producers/subscribers, or even wire a relay between two in‑memory buses (see `bus::relay_once`).
+
+
+## usb-sim quickstart (QEMU)
+These scripts automate end-to-end tests over the framed serial transport (“usb-sim”). Run from the repo root.
+
+- Two VMs (initiator ↔ responder over usb-sim):
+```
+./scripts/usb_sim_two_vm.sh
+```
+Expected: the initiator prints `[USBSIM] PASS` and the script exits cleanly.
+Note: The script begins PASS detection after `socat` has opened both PTYs and now also watches each VM’s PTY log for the PASS marker, improving robustness on slower hosts.
+
+- Bare-metal ↔ Bare-metal bus bridge over usb-sim:
+```
+MAX_WAIT=60 ./scripts/usbsim_bus_bm2bm.sh
+```
+Expected: one side prints `[MBUS-BM] PASS` (or an ACK marker) and the script exits.
+
+- Bare-metal ↔ Linux bridge over usb-sim (PTY):
+```
+sudo ./scripts/usbsim_bus_bm2linux.sh
+```
+Expected: Linux side prints `[MBUS-LNX] PASS` or BM prints `[MBUS-BM] PASS`.
+
+Notes:
+- Frame size must match on both sides. Choose with `FRAME=1024|2048|4096|8192`. Default is `4096` for bm↔bm and bm↔linux scripts; `usb_sim_two_vm.sh` defaults to `1024` for a faster demo.
+- The Linux bridge is run with `--max-frame $FRAME` to align with the BM build.
+- Scripts start child processes in new sessions (via `setsid`) and tear down the entire groups on exit, preventing orphans even on timeouts.
+- `socat` is required for PTY↔PTY bridging; install with `sudo apt-get install socat`.
+
+Troubleshooting tips for usb-sim:
+- If a PASS is not observed on a first run, re-run once. PTY attach timing can vary.
+- Increase `MAX_WAIT` if your host is slow.
+- For BM↔Linux, ensure your user can access PTYs; `sudo` is used in the script where needed.
+- Benign socat warning during teardown: on some hosts you may see `socat ... cannot restore terminal settings on fd 5: Input/output error` in raw logs when the PTY closes. Our scripts now stop VMs before `socat` and filter this warning from summaries. It does not indicate a failure and no processes are left running.
