@@ -1,0 +1,39 @@
+[package]
+name = "raspi-bare-metal"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+# Demo selection (UART menu remains available regardless). Default to basic demo.
+default = ["demo_basic"]
+demo_basic = []
+demo_try_publish = []
+demo_fanout = []
+demo_relay = []
+demo_msg_too_large = []
+
+# usb-sim (Rust-only simulated USB bulk over the UART stream)
+usb-sim = []
+# Auto-run roles (when enabled, run at boot instead of the menu)
+usbsim-initiator = ["usb-sim"]
+usbsim-responder = ["usb-sim"]
+# Messagebus bridge modes (autorun)
+usbsim-bridge = ["usb-sim"]
+usbsim-bridge-src = ["usb-sim", "usbsim-bridge"]
+usbsim-bridge-sink = ["usb-sim", "usbsim-bridge"]
+# Frame size knobs (pick at most one); default 4096 if none is set
+usbsim_frame_1024 = ["usb-sim"]
+usbsim_frame_2048 = ["usb-sim"]
+usbsim_frame_4096 = ["usb-sim"]
+usbsim_frame_8192 = ["usb-sim"]
+
+# Explicit binary target: disable tests/benches/doctests to avoid `test` crate on no_std target.
+[[bin]]
+name = "raspi-bare-metal"
+path = "src/main.rs"
+test = false
+bench = false
+doctest = false
+
+[dependencies]
+aarnn-nsys = { path = "../aarnn-nsys", default-features = false, features = ["bare"] }
