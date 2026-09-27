@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: Rust (${{ matrix.runner_arch }})
+    runs-on: [self-hosted, Linux, "${{ matrix.runner_arch }}"]
+    strategy:
+      fail-fast: false
+      matrix:
+        runner_arch: [X64, ARM64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt,rust-src
+          targets: aarch64-unknown-none
+
+      - name: Cache Rust artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Build release image
+        run: cargo build --locked --release
+
+      - name: Build usb-sim image
+        run: cargo build --locked --release --features usb-sim
