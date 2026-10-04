@@ -22,6 +22,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Cargo.toml depends on aarnn-nsys by path (../aarnn-nsys). Checkout can
+      # only write inside the workspace, so check it out here and link it to
+      # the sibling path Cargo expects.
+      - name: Checkout aarnn-nsys dependency
+        uses: actions/checkout@v4
+        with:
+          repository: neuralmimicry/aarnn-nsys
+          path: aarnn-nsys
+
+      - name: Link aarnn-nsys at the sibling path
+        run: ln -sfn "$GITHUB_WORKSPACE/aarnn-nsys" "$GITHUB_WORKSPACE/../aarnn-nsys"
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@nightly
         with:
