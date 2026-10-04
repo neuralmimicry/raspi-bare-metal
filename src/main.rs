@@ -32,9 +32,9 @@ unsafe extern "C" {
 use aarnn_nsys::bus;
 
 #[cfg(not(feature = "usb-sim"))]
-const DESC_CAPACITY: usize = 8;      // ring size (power of two)
+const DESC_CAPACITY: usize = 8; // ring size (power of two)
 #[cfg(not(feature = "usb-sim"))]
-const SLOT_BYTES: usize = 64;        // per-slot payload bytes
+const SLOT_BYTES: usize = 64; // per-slot payload bytes
 #[cfg(not(feature = "usb-sim"))]
 const BUF_LEN: usize = bus::min_buffer_size(DESC_CAPACITY, SLOT_BYTES);
 
@@ -73,16 +73,39 @@ fn make_bus_from_b() -> Option<bus::BusHandle> {
 #[cfg(not(feature = "usb-sim"))]
 fn demo_basic() {
     uart::puts(b"Raspi bare-metal booted. Initializing bus...\n");
-    let Some(bus) = make_bus_from_a() else { uart::puts(b"Bus init error\n"); unsafe { system_off() }; return; };
-    let sub = match bus.subscribe() { Ok(s) => s, Err(_) => { uart::puts(b"Subscribe failed\n"); unsafe { system_off() }; return; } };
+    let Some(bus) = make_bus_from_a() else {
+        uart::puts(b"Bus init error\n");
+        unsafe { system_off() };
+        return;
+    };
+    let sub = match bus.subscribe() {
+        Ok(s) => s,
+        Err(_) => {
+            uart::puts(b"Subscribe failed\n");
+            unsafe { system_off() };
+            return;
+        }
+    };
     let prod = bus.producer();
     let msg = b"hello from aarnn-nsys bare bus";
-    if let Err(_) = prod.publish(msg) { uart::puts(b"Publish failed\n"); unsafe { system_off() }; return; }
+    if let Err(_) = prod.publish(msg) {
+        uart::puts(b"Publish failed\n");
+        unsafe { system_off() };
+        return;
+    }
     let mut scratch = [0u8; SLOT_BYTES];
     match sub.try_recv(&mut scratch) {
-        Ok(Some(n)) => { uart::puts(b"Received: "); uart::puts(&scratch[..n]); uart::puts(b"\n"); }
-        Ok(None) => { uart::puts(b"No message available\n"); }
-        Err(_) => { uart::puts(b"Recv error\n"); }
+        Ok(Some(n)) => {
+            uart::puts(b"Received: ");
+            uart::puts(&scratch[..n]);
+            uart::puts(b"\n");
+        }
+        Ok(None) => {
+            uart::puts(b"No message available\n");
+        }
+        Err(_) => {
+            uart::puts(b"Recv error\n");
+        }
     }
     uart::puts(b"Done. Entering low-power wait.\n");
 }
@@ -90,16 +113,33 @@ fn demo_basic() {
 #[cfg(not(feature = "usb-sim"))]
 fn demo_try_publish() {
     uart::puts(b"Demo: try_publish and backpressure\n");
-    let Some(bus) = make_bus_from_a() else { uart::puts(b"Bus init error\n"); unsafe { system_off() }; return; };
+    let Some(bus) = make_bus_from_a() else {
+        uart::puts(b"Bus init error\n");
+        unsafe { system_off() };
+        return;
+    };
     let sub = bus.subscribe().expect("subscribe");
     let prod = bus.producer();
     let payload = [0xABu8; 16];
     let mut published = 0usize;
     loop {
         match prod.try_publish(&payload) {
-            Ok(true) => { published += 1; if published > DESC_CAPACITY { break; } }
-            Ok(false) => { uart::puts(b"Backpressure observed after "); put_num(published as u64); uart::puts(b" publishes\n"); break; }
-            Err(_) => { uart::puts(b"try_publish error\n"); break; }
+            Ok(true) => {
+                published += 1;
+                if published > DESC_CAPACITY {
+                    break;
+                }
+            }
+            Ok(false) => {
+                uart::puts(b"Backpressure observed after ");
+                put_num(published as u64);
+                uart::puts(b" publishes\n");
+                break;
+            }
+            Err(_) => {
+                uart::puts(b"try_publish error\n");
+                break;
+            }
         }
     }
     // Free one slot by receiving
@@ -116,7 +156,11 @@ fn demo_try_publish() {
 #[cfg(not(feature = "usb-sim"))]
 fn demo_fanout() {
     uart::puts(b"Demo: multi-subscriber fan-out\n");
-    let Some(bus) = make_bus_from_a() else { uart::puts(b"Bus init error\n"); unsafe { system_off() }; return; };
+    let Some(bus) = make_bus_from_a() else {
+        uart::puts(b"Bus init error\n");
+        unsafe { system_off() };
+        return;
+    };
     let sub0 = bus.subscribe().expect("sub0");
     let sub1 = bus.subscribe().expect("sub1");
     let sub2 = bus.subscribe().expect("sub2");
@@ -126,7 +170,13 @@ fn demo_fanout() {
     let mut scratch = [0u8; SLOT_BYTES];
     for (i, s) in [sub0, sub1, sub2].into_iter().enumerate() {
         match s.try_recv(&mut scratch) {
-            Ok(Some(n)) => { uart::puts(b"Subscriber "); put_num(i as u64); uart::puts(b" got: "); uart::puts(&scratch[..n]); uart::puts(b"\n"); }
+            Ok(Some(n)) => {
+                uart::puts(b"Subscriber ");
+                put_num(i as u64);
+                uart::puts(b" got: ");
+                uart::puts(&scratch[..n]);
+                uart::puts(b"\n");
+            }
             _ => uart::puts(b"Subscriber missed message\n"),
         }
     }
@@ -136,8 +186,16 @@ fn demo_fanout() {
 #[cfg(not(feature = "usb-sim"))]
 fn demo_relay() {
     uart::puts(b"Demo: relay_once between two in-memory buses\n");
-    let Some(bus_a) = make_bus_from_a() else { uart::puts(b"Bus A init error\n"); unsafe { system_off() }; return; };
-    let Some(bus_b) = make_bus_from_b() else { uart::puts(b"Bus B init error\n"); unsafe { system_off() }; return; };
+    let Some(bus_a) = make_bus_from_a() else {
+        uart::puts(b"Bus A init error\n");
+        unsafe { system_off() };
+        return;
+    };
+    let Some(bus_b) = make_bus_from_b() else {
+        uart::puts(b"Bus B init error\n");
+        unsafe { system_off() };
+        return;
+    };
     let sub_a = bus_a.subscribe().expect("sub A");
     let sub_b = bus_b.subscribe().expect("sub B");
     let prod_a = bus_a.producer();
@@ -146,13 +204,21 @@ fn demo_relay() {
     let _ = prod_a.publish(msg);
     let mut scratch = [0u8; SLOT_BYTES];
     match aarnn_nsys::bus::relay_once(&sub_a, &prod_b, &mut scratch) {
-        Ok(Some(n)) => { uart::puts(b"Relayed "); put_num(n as u64); uart::puts(b" bytes\n"); }
+        Ok(Some(n)) => {
+            uart::puts(b"Relayed ");
+            put_num(n as u64);
+            uart::puts(b" bytes\n");
+        }
         Ok(None) => uart::puts(b"No source message to relay\n"),
         Err(_) => uart::puts(b"Relay error\n"),
     }
     let mut scratch2 = [0u8; SLOT_BYTES];
     match sub_b.try_recv(&mut scratch2) {
-        Ok(Some(n)) => { uart::puts(b"Bus B received: "); uart::puts(&scratch2[..n]); uart::puts(b"\n"); }
+        Ok(Some(n)) => {
+            uart::puts(b"Bus B received: ");
+            uart::puts(&scratch2[..n]);
+            uart::puts(b"\n");
+        }
         _ => uart::puts(b"Bus B did not receive\n"),
     }
     uart::puts(b"Done. Entering low-power wait.\n");
@@ -161,7 +227,11 @@ fn demo_relay() {
 #[cfg(not(feature = "usb-sim"))]
 fn demo_msg_too_large() {
     uart::puts(b"Demo: MsgTooLarge behavior\n");
-    let Some(bus) = make_bus_from_a() else { uart::puts(b"Bus init error\n"); unsafe { system_off() }; return; };
+    let Some(bus) = make_bus_from_a() else {
+        uart::puts(b"Bus init error\n");
+        unsafe { system_off() };
+        return;
+    };
     let sub = bus.subscribe().expect("subscribe");
     let prod = bus.producer();
     let too_big = [0u8; SLOT_BYTES + 8];
@@ -174,7 +244,9 @@ fn demo_msg_too_large() {
     let _ = prod.publish(&ok);
     let mut scratch = [0u8; SLOT_BYTES];
     if let Ok(Some(n)) = sub.try_recv(&mut scratch) {
-        uart::puts(b"Received ok payload len="); put_num(n as u64); uart::puts(b"\n");
+        uart::puts(b"Received ok payload len=");
+        put_num(n as u64);
+        uart::puts(b"\n");
     }
     uart::puts(b"Done. Entering low-power wait.\n");
 }
@@ -185,9 +257,19 @@ fn put_num(mut x: u64) {
     // decimal printing
     let mut buf = [0u8; 20];
     let mut i = 0;
-    if x == 0 { uart::putc(b'0'); return; }
-    while x > 0 { buf[i] = b'0' + (x % 10) as u8; i += 1; x /= 10; }
-    while i > 0 { i -= 1; uart::puts(&[buf[i]]); }
+    if x == 0 {
+        uart::putc(b'0');
+        return;
+    }
+    while x > 0 {
+        buf[i] = b'0' + (x % 10) as u8;
+        i += 1;
+        x /= 10;
+    }
+    while i > 0 {
+        i -= 1;
+        uart::puts(&[buf[i]]);
+    }
 }
 
 /// Rust entry called by `_start` in `start.s`.
@@ -198,7 +280,9 @@ pub extern "C" fn not_main() {
     // If building a usb-sim role, give external PTY connectors a moment to attach
     #[cfg(feature = "usb-sim")]
     unsafe {
-        for _ in 0..50_000_000u32 { core::arch::asm!("nop"); }
+        for _ in 0..50_000_000u32 {
+            core::arch::asm!("nop");
+        }
         uart::puts(b"BOOT: usb-sim build\n");
     }
 
@@ -208,17 +292,25 @@ pub extern "C" fn not_main() {
         uart::puts(b"Boot: usb-sim messagebus bridge\n");
         crate::usbsim::bridge_bm::run_bridge();
     }
-    #[cfg(all(feature = "usb-sim", feature = "usbsim-responder", not(feature = "usbsim-bridge")))]
+    #[cfg(all(
+        feature = "usb-sim",
+        feature = "usbsim-responder",
+        not(feature = "usbsim-bridge")
+    ))]
     {
         uart::puts(b"Boot: usb-sim responder role\n");
         crate::usbsim::run_responder();
     }
-    #[cfg(all(feature = "usb-sim", feature = "usbsim-initiator", not(any(feature = "usbsim-responder", feature = "usbsim-bridge"))))]
+    #[cfg(all(
+        feature = "usb-sim",
+        feature = "usbsim-initiator",
+        not(any(feature = "usbsim-responder", feature = "usbsim-bridge"))
+    ))]
     {
         uart::puts(b"Boot: usb-sim initiator role\n");
         crate::usbsim::run_initiator();
     }
-    
+
     // Default interactive demos menu (only when usb-sim is not enabled)
     #[cfg(not(feature = "usb-sim"))]
     {
@@ -232,15 +324,29 @@ pub extern "C" fn not_main() {
             uart::puts(b"[q] Quit to low-power wait\n> ");
             let ch = uart::getc();
             match ch {
-                b'1' => { demo_basic(); }
-                b'2' => { demo_try_publish(); }
-                b'3' => { demo_fanout(); }
-                b'4' => { demo_relay(); }
-                b'5' => { demo_msg_too_large(); }
-                b'q' | b'Q' => { break; }
+                b'1' => {
+                    demo_basic();
+                }
+                b'2' => {
+                    demo_try_publish();
+                }
+                b'3' => {
+                    demo_fanout();
+                }
+                b'4' => {
+                    demo_relay();
+                }
+                b'5' => {
+                    demo_msg_too_large();
+                }
+                b'q' | b'Q' => {
+                    break;
+                }
                 // Ignore common whitespace characters to make automation robust
                 b'\r' | b'\n' | b' ' | b'\t' => { /* ignore whitespace */ }
-                _ => { uart::puts(b"\nInvalid selection.\n"); }
+                _ => {
+                    uart::puts(b"\nInvalid selection.\n");
+                }
             }
         }
         // Park only in the menu build to avoid unreachable warnings in usb-sim builds

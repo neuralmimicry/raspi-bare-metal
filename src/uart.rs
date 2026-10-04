@@ -13,8 +13,8 @@
 //! Safety: All MMIO accesses are done via volatile reads/writes. Public API is
 //! safe where possible; internal helpers use `unsafe` to hit MMIO.
 
-use core::ptr::{read_volatile, write_volatile};
 use core::arch::asm;
+use core::ptr::{read_volatile, write_volatile};
 use core::sync::atomic::{AtomicBool, Ordering};
 
 // Base addresses
@@ -25,13 +25,13 @@ const UART0_BASE: usize = 0xFE20_1000;
 const GPFSEL1: usize = 0x04; // Function select 1 (pins 10..19)
 
 // PL011 registers (offsets)
-const UART_DR: usize   = 0x00; // Data register
-const UART_FR: usize   = 0x18; // Flag register
+const UART_DR: usize = 0x00; // Data register
+const UART_FR: usize = 0x18; // Flag register
 const UART_IBRD: usize = 0x24; // Integer baud rate divisor
 const UART_FBRD: usize = 0x28; // Fractional baud rate divisor
-const UART_LCR_H: usize= 0x2C; // Line control
-const UART_CR: usize   = 0x30; // Control
-const UART_ICR: usize  = 0x44; // Interrupt clear
+const UART_LCR_H: usize = 0x2C; // Line control
+const UART_CR: usize = 0x30; // Control
+const UART_ICR: usize = 0x44; // Interrupt clear
 
 // PL011 flag bits
 const FR_TXFF: u32 = 1 << 5; // Transmit FIFO full
@@ -39,33 +39,45 @@ const FR_RXFE: u32 = 1 << 4; // Receive FIFO empty
 
 // PL011 control and line control bits
 const CR_UARTEN: u32 = 1 << 0;
-const CR_TXE:    u32 = 1 << 8;
-const CR_RXE:    u32 = 1 << 9;
+const CR_TXE: u32 = 1 << 8;
+const CR_RXE: u32 = 1 << 9;
 
-const LCRH_FEN:  u32 = 1 << 4;     // FIFO enable
+const LCRH_FEN: u32 = 1 << 4; // FIFO enable
 const LCRH_WLEN_8: u32 = 0b11 << 5; // 8-bit word length
 
 // Helpers to get pointers
 #[inline(always)]
-fn reg32(addr: usize) -> *mut u32 { addr as *mut u32 }
+fn reg32(addr: usize) -> *mut u32 {
+    addr as *mut u32
+}
 #[inline(always)]
-fn reg8(addr: usize) -> *mut u8 { addr as *mut u8 }
+fn reg8(addr: usize) -> *mut u8 {
+    addr as *mut u8
+}
 
 #[inline(always)]
-fn gpio_reg(off: usize) -> *mut u32 { reg32(GPIO_BASE + off) }
+fn gpio_reg(off: usize) -> *mut u32 {
+    reg32(GPIO_BASE + off)
+}
 #[inline(always)]
-fn uart_reg(off: usize) -> *mut u32 { reg32(UART0_BASE + off) }
+fn uart_reg(off: usize) -> *mut u32 {
+    reg32(UART0_BASE + off)
+}
 
 /// Small delay loop; not calibrated. Used between register writes when required.
 #[inline(always)]
 fn tiny_delay() {
     // Prevent the compiler from optimizing it away
-    for _ in 0..64 { unsafe { asm!("nop") } }
+    for _ in 0..64 {
+        unsafe { asm!("nop") }
+    }
 }
 
 /// Data synchronization barrier to ensure MMIO ordering.
 #[inline(always)]
-fn dsb_sy() { unsafe { asm!("dsb sy", options(nostack, preserves_flags)) } }
+fn dsb_sy() {
+    unsafe { asm!("dsb sy", options(nostack, preserves_flags)) }
+}
 
 /// Configure GPIO14 (TXD0) and GPIO15 (RXD0) to ALT0 for PL011.
 fn gpio_setup_uart0_alt0() {
@@ -146,7 +158,10 @@ pub fn puts(buf: &[u8]) {
     lock_tx();
     for &b in buf {
         match b {
-            b'\n' => { putc(b'\r'); putc(b'\n'); }
+            b'\n' => {
+                putc(b'\r');
+                putc(b'\n');
+            }
             _ => putc(b),
         }
     }
@@ -158,7 +173,9 @@ pub fn getc() -> u8 {
     // Implement blocking read in terms of the non-blocking poll to ensure
     // `try_getc` is always referenced and compiled-in.
     loop {
-        if let Some(b) = try_getc() { return b; }
+        if let Some(b) = try_getc() {
+            return b;
+        }
         // brief wait
         unsafe { asm!("nop") }
     }
